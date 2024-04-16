@@ -1,12 +1,15 @@
 const express = require('express');
 const bodyParser = require('body-parser');
 const axios = require('axios');
+const cors = require('cors');
 const { createProxyMiddleware } = require('http-proxy-middleware');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 
 const userId = '65f8a9db4fc3e16ed5a26cf6';
+
+app.use(cors());
 
 app.use(bodyParser.json());
 
