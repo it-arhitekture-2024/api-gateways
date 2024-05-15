@@ -2,62 +2,80 @@ const express = require('express');
 const bodyParser = require('body-parser');
 const axios = require('axios');
 const cors = require('cors');
-const { createProxyMiddleware } = require('http-proxy-middleware');
+const grpc = require('@grpc/grpc-js');
+const protoLoader = require('@grpc/proto-loader');
+const PROTO_PATH = 'user.proto';
+
+const packageDefinition = protoLoader.loadSync(PROTO_PATH, {
+    keepCase: true,
+    longs: String,
+    enums: String,
+    defaults: true,
+    oneofs: true
+  });
+  
+const proto = grpc.loadPackageDefinition(packageDefinition).si.um.feri;
+const client = new proto.UserService('localhost:9000', grpc.credentials.createInsecure());
+
+grpc.setLogVerbosity(grpc.logVerbosity.DEBUG);
+grpc.setLogger(console);
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-const userId = '65f8a9db4fc3e16ed5a26cf6';
-
 app.use(cors());
-
 app.use(bodyParser.json());
-
-app.use('/grpc', createProxyMiddleware({
-    target: 'http://localhost:8081',
-    changeOrigin: true,
-  }));
+app.use(express.json());
 
 //#region Users
 
-app.get('/web/users/:id', async (req, res) => {
-    try {
-        const response = await axios.get(`http://localhost:${PORT}/grpc/users/${req.params.id}`);
-        res.json(response.data);
-    } catch (error) {
-        console.error('Error calling Users service:', error);
-        res.status(500).json({ error: 'Internal Server Error' });
-    }
+app.get('/web/users/:id', (req, res) => {
+    const { id } = req.params;
+    client.getUser({ id }, (error, response) => {
+        if (error) {
+            console.error('Error calling Users service:', error);
+            res.status(500).json({ error: 'Internal Server Error' });
+        } else {
+            res.json(response);
+        }
+    });
 });
 
-app.post('/web/users', async (req, res) => {
-    try {
-        const response = await axios.post(`http://localhost:${PORT}/grpc/users/`, req.body);
-        res.json(response.data);
-    } catch (error) {
-        console.error('Error calling Users service:', error);
-        res.status(500).json({ error: 'Internal Server Error' });
-    }
+app.post('/web/users', (req, res) => {
+    const { name, surname, age, type } = req.body;
+    client.createUser({ name, surname, age, type }, (error, response) => {
+        if (error) {
+            console.error('Error calling Users service:', error);
+            res.status(500).json({ error: 'Internal Server Error' });
+        } else {
+            res.json(response);
+        }
+    });
 });
 
-app.put('/web/users/:id', async (req, res) => {
-    try {
-        const response = await axios.put(`http://localhost:${PORT}/grpc/users/${req.params.id}`, req.body);
-        res.json(response.data);
-    } catch (error) {
-        console.error('Error calling Users service:', error);
-        res.status(500).json({ error: 'Internal Server Error' });
-    }
+app.put('/web/users/:id', (req, res) => {
+    const { id } = req.params;
+    const { name, surname, age, type } = req.body;
+    client.putUser({ id, name, surname, age, type }, (error, response) => {
+        if (error) {
+            console.error('Error calling Users service:', error);
+            res.status(500).json({ error: 'Internal Server Error' });
+        } else {
+            res.json(response);
+        }
+    });
 });
 
-app.delete('/web/users/:id', async (req, res) => {
-    try {
-        const response = await axios.delete(`http://localhost:${PORT}/grpc/users/${req.params.id}`);
-        res.json(response.data);
-    } catch (error) {
-        console.error('Error calling Users service:', error);
-        res.status(500).json({ error: 'Internal Server Error' });
-    }
+app.delete('/web/users/:id', (req, res) => {
+    const { id } = req.params;
+    client.deleteUser({ id }, (error, response) => {
+        if (error) {
+            console.error('Error calling Users service:', error);
+            res.status(500).json({ error: 'Internal Server Error' });
+        } else {
+            res.json(response);
+        }
+    });
 });
 
 //#endregion
@@ -96,6 +114,7 @@ app.put('/web/grades/:id', async (req, res) => {
 
 app.delete('/web/grades/:id', async (req, res) => {
     try {
+        console.log("ID: ", req.params.id);
         const response = await axios.delete(`http://localhost:8082/grades/${req.params.id}`);
         res.json(response.data);
     } catch (error) {
